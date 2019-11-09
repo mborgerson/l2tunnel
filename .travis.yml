@@ -1,0 +1,34 @@
+sudo: false
+
+dist: xenial
+
+language: c
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - gcc
+
+addons:
+  apt:
+    packages:
+      - libpcap-dev
+      - mingw-w64
+
+script:
+  - set -e
+  - |
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+      echo "Building for Linux"
+      make l2tunnel
+
+      echo "Cross-compiling for Windows"
+      wget https://nmap.org/npcap/dist/npcap-sdk-1.04.zip
+      unzip -dnpcap npcap-sdk-1.04.zip
+      make l2tunnel.exe;
+    fi
+    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+      make l2tunnel;
+    fi
