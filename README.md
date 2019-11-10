@@ -26,15 +26,14 @@ wget https://nmap.org/npcap/dist/npcap-sdk-1.04.zip
 unzip -dnpcap npcap-sdk-1.04.zip
 
 # Compile
-x86_64-w64-mingw32-gcc-7.3-win32 -o l2tunnel.exe -I npcap/Include/ \
-    -L npcap/Lib/x64 l2tunnel.c -l wpcap -lws2_32
+make l2tunnel.exe
 ```
 
 ### macOS
 
 ```sh
 # Compile
-gcc -o l2tunnel l2tunnel.c -lpcap
+make
 ```
 
 Additionally, once you have built the program, you will need to run it as root
@@ -54,7 +53,7 @@ sudo chmod u+s l2tunnel
 sudo apt install libpcap-dev
 
 # Compile
-gcc -o l2tunnel l2tunnel.c -lpcap
+make
 ```
 
 Additionally, once you have built the program, you will need to either run it as
