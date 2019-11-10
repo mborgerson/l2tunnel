@@ -141,7 +141,6 @@ static pcap_t *setup_pcap(const char *if_name)
     }
 
 #ifdef WIN32
-    pcap_set_immediate_mode(p, 1);
     pcap_setmintocopy(p, 40);
 #endif
 
