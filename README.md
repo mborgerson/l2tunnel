@@ -74,7 +74,7 @@ a network interface.
 ### Windows
 
 Download and install the latest "Npcap installer" [available
-here](https://nmap.org/npcap/).
+here](https://nmap.org/npcap/). Install in "WinPcap API-compatible Mode".
 
 ### macOS
 
