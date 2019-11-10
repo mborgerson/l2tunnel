@@ -100,7 +100,6 @@ device 0: vboxnet0
 - flags: PCAP_IF_UP PCAP_IF_RUNNING
 device 1: wlp0s20f3
 - flags: PCAP_IF_UP PCAP_IF_RUNNING
-[trimmed]
 device 2: enp0s31f6
 - flags: PCAP_IF_UP PCAP_IF_RUNNING
 [ additional interfaces trimmed ]
@@ -126,9 +125,9 @@ We see that a broadcast packet was sent by the device, and the source MAC
 address is `00:0d:3a:38:ac:2e`.
 
 Finally, we are ready to begin tunneling. We will tunnel traffic on local
-interface `enp0s31f6` to/from our device with MAC address `00:0d:3a:38:ac:2e` to
-a remote host 1.2.3.4 via UDP port 1337 and receive traffic that will be
-forwarded back to the via via local UDP port 1337:
+interface `enp0s31f6` to/from our device with MAC address `00:0d:3a:38:ac:2e` and
+remote host 1.2.3.4 via UDP port 1337 and receive traffic that will be
+forwarded back to the device via local UDP port 1337:
 
 ```sh
 #                   (iface)   (mac addr)        (local addr) (remote addr)
