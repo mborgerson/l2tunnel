@@ -13,7 +13,8 @@ To the console, it will appear as if other consoles are connected on the LAN.
 
 Pre-built Binaries
 ------------------
-Download the latest pre-built release [here](https://github.com/mborgerson/l2tunnel/releases).
+Download the latest pre-built release for Windows [here](https://github.com/mborgerson/l2tunnel/releases/latest).
+At the moment, macOS and Linux users will need to build from source.
 
 How to Build
 ------------
