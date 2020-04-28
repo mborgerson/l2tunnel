@@ -144,23 +144,3 @@ host which has also sent a packet.
 
 To connect multiple consoles over the Internet, a hub should first be created.
 Then each user can start a tunnel which forwards traffic to the hub.
-
-Connecting other Applications
------------------------------
-
-### XQEMU
-
-Full disclosure: as a maintainer of [XQEMU](https://xqemu.com), an original Xbox
-emulator, my main motivation for this project was to allow both original Xboxes
-and instances of XQEMU to communicate harmoniously across the Internet.
-
-XQEMU can connect directly with a tunnel or through VLAN created via hub.py
-easily by adding the following command line option:
-
-```
--net nic -net socket,udp=1.2.3.4:1337,localaddr=0.0.0.0:1337
-```
-
-Like the above `l2tunnel` example, here 1.2.3.4:1337 is the IP/Port of the vlan
-hub and the localaddr option specifies that XQEMU should listen on port 1337 for
-traffic from the VLAN.
