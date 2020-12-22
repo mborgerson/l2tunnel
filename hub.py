@@ -33,6 +33,15 @@ packets to it.
 import socket
 import argparse
 import time
+import struct
+import logging
+
+logging.basicConfig(format='%(message)s', level=logging.INFO)
+
+l = logging.getLogger(__name__)
+
+broadcast_mac = (0xff, 0xff, 0xff, 0xff, 0xff, 0xff)
+fmt_mac = lambda o: ':'.join([('%02x' % o) for o in o])
 
 def main():
 	# Parse command line arguments
@@ -40,41 +49,73 @@ def main():
 	ap.add_argument('--host', default='0.0.0.0', help='interface to bind to')
 	ap.add_argument('--port', '-p', type=int, default=1337, help='port to listen on')
 	ap.add_argument('--timeout', '-t', type=int, default=0, help='peer inactivity timeout (0 for no timeout)')
+	ap.add_argument('--switch', '-s', default=False, action='store_true', help='behave like network switch (fwd only to dest mac)')
+	ap.add_argument('--verbose', '-v', default=False, action='store_true', help='enable verbose log output')
 	args = ap.parse_args()
+
+	if args.verbose:
+		l.setLevel(logging.DEBUG)
 
 	# Create datagram socket
 	sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 	assert(sock != None)
 	sock.bind((args.host, args.port))
-	print('Waiting for UDP packets on %s:%d' % sock.getsockname())
+	l.info('Waiting for UDP packets on %s:%d' % sock.getsockname())
 
 	peers = {}
+	macs = {}
+
 	while True:
 		# Receive packet on the interface
 		data, addr = sock.recvfrom(1500)
-		print('Recieved %d bytes from %s:' % (len(data), addr))
+		l.debug('Received %d bytes from %s:' % (len(data), addr))
+		if len(data) < 12: continue
 		now = time.time()
 
+		dest_mac = struct.unpack('6B', data[0:6])
+		src_mac = struct.unpack('6B', data[6:12])
+		l.debug('%s -> %s', fmt_mac(src_mac), fmt_mac(dest_mac))
+
 		# If you wanted to, you could verify that this packet came from an
-		# authorized peer. Instead, we will permit registration of peer upon first
-		# packet they send.
+		# authorized peer. Instead, we will permit registration of peer upon
+		# first packet they send.
 		if addr not in peers:
-			print('New peer %s:%d (total %d)' % (addr[0], addr[1], len(peers)+1))
+			l.info('New peer %s:%d (total %d)', addr[0], addr[1], len(peers)+1)
 		peers[addr] = now
+
+		# Update MAC:HOST table
+		if (src_mac in macs) and (macs[src_mac] != addr):
+			l.info('Updated MAC table %s: %s:%d -> %s:%d', fmt_mac(src_mac),
+				macs[src_mac][0], macs[src_mac][1],
+				addr[0], addr[1])
+		macs[src_mac] = addr
 
 		# Check for timeouts
 		if args.timeout > 0:
 			for p in [p for p in peers if (now-peers[p] > args.timeout)]:
-				print('Peer %s:%d has timed out' % p)
+				l.info('Peer %s:%d has timed out', *p)
 				del peers[p]
 
-		# Repeat to all peers
 		i = 0
-		for peer in peers:
+		if args.switch and (dest_mac != broadcast_mac):
+			if dest_mac not in macs:
+				l.debug('Unknown destination')
+				continue
+			peer = macs[dest_mac]
+			if peer not in peers:
+				l.debug('Peer has timed out')
+				del macs[dest_mac]
+				continue
 			if peer == addr: continue # Don't repeat to sender
 			sock.sendto(data, peer)
 			i += 1
-		print('Forwarded to %d peers' % i)
+		else:
+			# Repeat to all peers
+			for peer in peers:
+				if peer == addr: continue # Don't repeat to sender
+				sock.sendto(data, peer)
+				i += 1
+		l.debug('Forwarded to %d peers' % i)
 
 if __name__ == '__main__':
 	main()
