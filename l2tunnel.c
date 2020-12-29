@@ -20,6 +20,7 @@
 #define DEBUG 1
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,7 +53,7 @@ size_t pcap_packet_len;
 #define LOG_DEBUG(...)
 #endif
 
-/* 
+/*
  * Get all available network interfaces
  */
 static void list_available_interfaces(void)
@@ -150,7 +151,7 @@ static pcap_t *setup_pcap(const char *if_name)
 /*
  * Filter traffic for a specific MAC address
  */
-static int filter_by_mac(const uint8_t mac[6])
+static int filter_by_mac(const uint8_t mac[6], bool flt_by_src)
 {
     struct bpf_program fp;
     int status;
@@ -158,8 +159,17 @@ static int filter_by_mac(const uint8_t mac[6])
     char filter_str[32];
     char mac_str[18];
 
+    return 0;
+
+
     fmt_mac_addr(mac_str, sizeof(mac_str), mac);
-    snprintf(filter_str, sizeof(filter_str), "ether src %s", mac_str);
+
+    if (flt_by_src) {
+        snprintf(filter_str, sizeof(filter_str), "ether src %s", mac_str);
+    } else {
+        snprintf(filter_str, sizeof(filter_str),
+            "ether dst %s or ether dst ff:ff:ff:ff:ff:ff", mac_str);
+    }
 
     status = pcap_compile(p, &fp, filter_str, 1, PCAP_NETMASK_UNKNOWN);
     if (status != 0) {
@@ -223,11 +233,13 @@ static void discover_devices(void)
 /*
  * Monitor traffic from a specific MAC address
  */
-static void capture_traffic_from(const uint8_t filter_mac[6])
+static void capture_traffic_from(const uint8_t filter_mac[6], bool flt_by_src)
 {
     struct pcap_pkthdr *pkt_header;
     const u_char *pkt_data;
     const uint8_t *pkt_src;
+    const uint8_t *pkt_dest;
+    const char *bcast = "\xff\xff\xff\xff\xff\xff";
     int status;
 
     pcap_packet_len = 0;
@@ -255,10 +267,19 @@ static void capture_traffic_from(const uint8_t filter_mac[6])
     /* Verify that we captured the entire packet */
     assert(pkt_header->caplen == pkt_header->len);
 
-    pkt_src = &pkt_data[6];
-    if (memcmp(pkt_src, filter_mac, 6) != 0) {
-        /* Not our packet */
-        return;
+    if (flt_by_src) {
+        pkt_src = &pkt_data[6];
+        if (memcmp(pkt_src, filter_mac, 6) != 0) {
+            /* Not our packet */
+            return;
+        }
+    } else {
+        pkt_dest = &pkt_data[0];
+        if (memcmp(pkt_dest, filter_mac, 6) != 0 &&
+            memcmp(pkt_dest, bcast, 6) != 0) {
+            /* Not our packet */
+            return;
+        }
     }
 
     char to[24], from[24];
@@ -314,6 +335,8 @@ static int setup_local_socket(const struct sockaddr_in *local_addr)
 int main(int argc, char *argv[])
 {
     char *if_name;
+    bool flt_by_src;
+    char *flt_str;
     uint8_t mac[6];
     char *mac_str;
     char *laddr_str;
@@ -350,13 +373,14 @@ int main(int argc, char *argv[])
         discover_devices();
         exit(0);
     } else if (!strcmp(argv[1], "tunnel")) {
-        if (argc < 8) goto usage;
+        if (argc < 9) goto usage;
         if_name = argv[2];
-        mac_str = argv[3];
-        laddr_str = argv[4];
-        lport_str = argv[5];
-        raddr_str = argv[6];
-        rport_str = argv[7];
+        flt_str = argv[3];
+        mac_str = argv[4];
+        laddr_str = argv[5];
+        lport_str = argv[6];
+        raddr_str = argv[7];
+        rport_str = argv[8];
     } else {
         goto usage;
     }
@@ -407,13 +431,22 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    if (strcmp(flt_str, "-s") == 0) {
+        flt_by_src = true;
+    } else if (strcmp(flt_str, "-d") == 0) {
+        flt_by_src = false;
+    } else {
+        LOG_ERROR("specify -s or -d for MAC filtering\n");
+        exit(1);
+    }
+
     if (parse_mac_addr(mac, mac_str)) {
         LOG_ERROR("invalid MAC address\n");
         exit(1);
     }
 
     setup_pcap(if_name);
-    filter_by_mac(mac);
+    filter_by_mac(mac, flt_by_src);
     sockfd = setup_local_socket(&local_addr);
 
 #ifdef WIN32
@@ -462,7 +495,7 @@ int main(int argc, char *argv[])
         if (FD_ISSET(pcapfd, &fds)) {
 #endif
             LOG_DEBUG("packet waiting from pcap\n");
-            capture_traffic_from(mac);
+            capture_traffic_from(mac, flt_by_src);
 
             /* Send this packet to the remote */
             if (pcap_packet_len > 0) {
@@ -534,16 +567,17 @@ int main(int argc, char *argv[])
     return 0;
 usage:
     fprintf(stderr, "l2tunnel version " BUILD_VERSION " (" BUILD_DATE ")\n");
-    fprintf(stderr, "Copyright (c) 2019 Matt Borgerson\n");
+    fprintf(stderr, "Copyright (c) 2019-2020 Matt Borgerson\n");
     fprintf(stderr, "usage: %s <cmd...>\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "Commands:\n");
     fprintf(stderr, "  list                    List available interfaces\n");
     fprintf(stderr, "  discover <if>           Discover MAC addresses on interface <if>\n");
-    fprintf(stderr, "  tunnel   <if>  <mac>  <laddr> <lport>  <raddr> <rport>\n");
+    fprintf(stderr, "  tunnel   <if> -d|-s <mac> <laddr> <lport>  <raddr> <rport>\n");
     fprintf(stderr, "                          Forward datagrams sent to udp:<laddr:lport> to\n");
-    fprintf(stderr, "                          <mac> on <if> and packets sniffed on <if> from <mac>\n");
-    fprintf(stderr, "                          to udp:<raddr:rport>\n");
+    fprintf(stderr, "                          <if> and packets sniffed on <if> to udp:<raddr:rport>.\n");
+    fprintf(stderr, "                             -s filters traffic from <if> by source <mac>\n");
+    fprintf(stderr, "                             -d filters traffic from <if> by destination <mac>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "This free software is distributed in the hope that it will be useful,\n");
     fprintf(stderr, "but WITHOUT ANY WARRANTY. See the GNU General Public License for more details.\n");

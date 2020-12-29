@@ -131,8 +131,8 @@ remote host 1.2.3.4 via UDP port 1337 and receive traffic that will be
 forwarded back to the device via local UDP port 1337:
 
 ```sh
-#                   (iface)   (mac addr)        (local addr) (remote addr)
-$ ./l2tunnel tunnel enp0s31f6 00:0d:3a:38:ac:2e 0.0.0.0 1337 1.2.3.4 1337
+#                   (iface)      (mac addr)        (local addr) (remote addr)
+$ ./l2tunnel tunnel enp0s31f6 -s 00:0d:3a:38:ac:2e 0.0.0.0 1337 1.2.3.4 1337
 ```
 
 Virtual LAN
