@@ -156,11 +156,8 @@ static int filter_by_mac(const uint8_t mac[6], bool flt_by_src)
     struct bpf_program fp;
     int status;
 
-    char filter_str[32];
+    char filter_str[128];
     char mac_str[18];
-
-    return 0;
-
 
     fmt_mac_addr(mac_str, sizeof(mac_str), mac);
 
