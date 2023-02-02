@@ -1,7 +1,6 @@
 Layer 2 Tunnel
 ==============
 
-[![Build Status](https://travis-ci.org/mborgerson/l2tunnel.svg?branch=master)](https://travis-ci.org/mborgerson/l2tunnel)
 [![Download](https://img.shields.io/badge/Download-Windows-blue?logo=Windows)](https://github.com/mborgerson/l2tunnel/releases/latest/download/l2tunnel.exe.zip)
 
 This is a simple utility to tunnel link-layer traffic from a device accessible
